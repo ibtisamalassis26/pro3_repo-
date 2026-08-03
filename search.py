@@ -5,6 +5,7 @@ from db import engine
 from models import destinations
 from sentence_transformers import SentenceTransformer
 from pgvector.sqlalchemy import Vector
+from models import search_history
 
 model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
@@ -79,3 +80,37 @@ def search_destinations(
         return fallback_selection, "fallback"
 
     return results[:top_k], "success"
+
+
+def log_search_query(db_conn, query_text: str, category_filter: str = None, query_embedding: list = None, user_id: str = "default_user"):
+    """Inserts a new query log into the search_history table."""
+    stmt = search_history.insert().values(
+        user_id=user_id,
+        query_text=query_text,
+        category_filter=category_filter,
+        query_embedding=query_embedding
+    )
+    db_conn.execute(stmt)
+    db_conn.commit()
+
+def get_user_search_history(db_conn, user_id: str = "default_user", limit: int = 10):
+    """Retrieves recent searches for a specific user."""
+    stmt = (
+        search_history.select()
+        .where(search_history.c.user_id == user_id)
+        .order_by(search_history.c.created_at.desc())
+        .limit(limit)
+    )
+    results = db_conn.execute(stmt).fetchall()
+    
+    history = []
+    for row in results:
+        # Convert SQLAlchemy Row mapping to dictionary format
+        mapping = row._mapping
+        history.append({
+            "id": mapping["id"],
+            "query_text": mapping["query_text"],
+            "category_filter": mapping["category_filter"],
+            "created_at": mapping["created_at"].isoformat() if mapping["created_at"] else None
+        })
+    return history

@@ -1,4 +1,4 @@
-from sqlalchemy import Table, Column, Integer, String
+from sqlalchemy import Table, Column, Integer, String, DateTime, func
 from pgvector.sqlalchemy import Vector  
 from db import metadata
 
@@ -14,4 +14,15 @@ destinations = Table(
     Column("description", String, nullable=False),
     Column("category", String(50), nullable=False),
     Column("embedding", Vector(EMBEDDING_DIM), nullable=False)
+)
+
+search_history = Table(
+    "search_history",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", String(50), nullable=False, default="default_user"),
+    Column("query_text", String, nullable=False),
+    Column("category_filter", String(50), nullable=True),
+    Column("query_embedding", Vector(384), nullable=True),
+    Column("created_at", DateTime(timezone=True), server_default=func.now())
 )
